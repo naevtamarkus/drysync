@@ -20,13 +20,15 @@
 #
 # You can find instructions here: https://github.com/naevtamarkus/drysync
 # 
-
+# Requirements: python-kivy 1.09 (apt-get install python-kivy)
+#               python 2.7
+#
 # Options to run this app:
 # - Run normally without parameters for a full GUI
 # - Run with 'auto' parameter to perform a dry sync and launch GUI only if necessary (if there are things to sync)
 #
 # In order to make this run regularly, insert this with 'crontab -e' as a user
-# 0 8,16 * * * /home/myself/SharedStorage/drysync/drysyncapp.py auto >> /tmp/drysync-cron.log
+# 0 8,16 * * * /home/myself/bin/drysyncapp.py auto >> /tmp/drysync-cron.log
 
 
 import json
