@@ -200,21 +200,21 @@ class Action:
   def toString(self):
     # Returns a one-line string with the action to do (only for brief info)
     if self.command == 'cp':
-      return "cp -a %s %s" % (action.source, action.target)
+      return "cp -a %s %s" % (self.source, self.target)
     if self.command == 'mkdir':
-      return "mkdir %s" % (action.target)
+      return "mkdir %s" % (self.target)
     if self.command == 'ln':
-      return "ln -sf %s %s" % (action.source, action.target)
+      return "ln -sf %s %s" % (self.source, self.target)
 
   def getExecutionLog(self):
     # Returns a one-line string with the execution log, plus extra lines if there were errors
     if self.hasExecuted:
       if self.errorMsg == None:
-        return '[OK] %s' % action.toString()
-      if action.errorMsg != None:
-        return '[ERROR] %s\n%s' % (action.toString(), action.errorMsg)
+        return '[OK] %s' % self.toString()
+      if self.errorMsg != None:
+        return '[ERROR] %s\n%s' % (self.toString(), self.errorMsg)
     else:
-      return '[PENDING] %s' % action.toString()
+      return '[PENDING] %s' % self.toString()
 
 
 
