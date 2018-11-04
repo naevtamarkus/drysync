@@ -13,27 +13,27 @@ DrySync comes in two flavors: one CLI to use from the command line (much like rs
 
 Everything is written in python and kept in single-file fashion for maximal portability.
 
-## drysync.py
+## drysync
 
 This is the command-line tool, but it also includes the basic classes for the App. It does not require installattion and can be run like this:
-```./drysync.py sourcedir/ destinationdir/```
+```./drysync sourcedir/ destinationdir/```
 This will copy the contents of sourcedir into destinationdir, asking for confirmation before doing it. In the confirmation screen you will see an ordered list of actions to be performed, where you can explore the details of the sync operation. For those files that already exist in the destination but are different, the tool can show you a diff between the two if you tell it to (by typing the number of the action).
 
-You can type ```./drysync.py -h``` for the full instructions. This CLI usage does not use any config files. It works with python 2 and 3 and does not need any special packages.
+You can type ```./drysync -h``` for the full instructions. This CLI usage does not use any config files. It works with python 2 and 3 and does not need any special packages.
 
-## drysyncapp.py
+## drysyncapp
 
-This is the graphical interface for DrySync. It requires the drysync.py file to be in the same directory, because it contains the base classes for the sync operations.
+This is the graphical interface for DrySync. It requires the drysync file to be in the same directory, because it contains the base classes for the sync operations.
 
 DrySyncApp works only with python 2.7, and kivy >= 1.09 is also needed as a dependency (```apt-get install python-kivy```) for all the GUI widgets.
 
-If you invoke ```./drysyncapp.py``` without parameters, it will open a configuration screen where you can define any number of sync tasks, enable/disable them, simulate a sync (drysync) and do the actual execution. 
+If you invoke ```./drysyncapp``` without parameters, it will open a configuration screen where you can define any number of sync tasks, enable/disable them, simulate a sync (drysync) and do the actual execution. 
 
-If you invoke the tool with the auto parameter, with ```./drysyncapp.py auto```, the tool will try to perform a sync operation of all the tasks that are defined and enabled, and only launch the GUI interface if there are things to do, to ask for confirmation. This is well suited for running the tool in this mode from a task scheduler (such as cron).
+If you invoke the tool with the auto parameter, with ```./drysyncapp auto```, the tool will try to perform a sync operation of all the tasks that are defined and enabled, and only launch the GUI interface if there are things to do, to ask for confirmation. This is well suited for running the tool in this mode from a task scheduler (such as cron).
 
 There are many ways to schedule these tasks. If you want to use cron (in any linux flavors) you can run:
 ```crontab -e``` as your own user and then add the line:
-```0 8,16 * * * /home/myself/bin/drysyncapp.py auto >> /tmp/drysync-cron.log```
+```0 8,16 * * * /home/myself/bin/drysyncapp auto >> /tmp/drysync-cron.log```
 This will make the app run twice per day, at 8 and 16 hours. You can verify it's active by running ```crontab -l``` or looking at the logs in ```/tmp/drysync-cron.log```
 
 The app uses a config directory in ```~/.drysync``` to store the list of tasks and PID files.
