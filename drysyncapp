@@ -35,10 +35,14 @@ import json
 import os, sys
 import ast
 import datetime
-
+import imp
+# this is the path of the dependency (because has no .py extension)
+path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'drysync')
+drysync = imp.load_source('drysync', path) 
 from drysync import DryRun
 from drysync import Task
 from drysync import Action
+
 
 #os.environ["KIVY_NO_CONSOLELOG"] = "1"
 if 'DISPLAY' not in os.environ:
@@ -548,8 +552,10 @@ class SingleActionLayout(GridLayout):
     else: 
       self.ids.actionButton.text = "Diff"
       self.ids.actionButton.disabled = False
-    if action.command == 'cp' or action.command == 'ln':
+    if action.command == 'cp':
       self.ids.actionParams.text = action.source + ' --> ' + action.target
+    elif action.command == 'ln':
+      self.ids.actionParams.text = action.target + ' --> ' + action.source
     else:
       self.ids.actionParams.text = action.target
 

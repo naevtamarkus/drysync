@@ -71,9 +71,9 @@ class Task:
     isNew = not os.path.lexists(dst)
     if os.path.islink(src) and (isNew or not os.path.islink(dst) or os.readlink(src) != os.readlink(dst)):
       # It's a symlink, make sure dst points to the same place as src
-      actions.append(Action(command='ln', source=dst, target=os.readlink(src), isNew=isNew))
+      actions.append(Action(command='ln', source=os.readlink(src), target=dst, isNew=isNew))
 
-    elif os.path.isfile(src) and (isNew or not filecmp.cmp(src, dst)):
+    elif not os.path.islink(src) and os.path.isfile(src) and (isNew or not filecmp.cmp(src, dst)):
       actions.append(Action(command='cp', source=src, target=dst, isNew=isNew))
     # TODO we could check also permissions are the same and do only an Action(chmod) if not
 
@@ -98,8 +98,6 @@ class Task:
     # src and dst must be directories (absolute paths)
     # Exceptions should be catched in the caller of this function
     #print "__copyDirectory (%s, %s)" % (src, dst)
-    if os.path.islink(src):
-      a=1/0 # we should never get in here, links are treated as files not directories TODO replace with an actual exception
     allFiles = os.listdir(src)
     dirName = os.path.basename(src)
     actions = []
@@ -116,13 +114,13 @@ class Task:
       srcname = os.path.join(src, name)
       dstname = os.path.join(dst, name)
       # If it's a link, treat it like a file
-      if os.path.isdir(srcname) and not os.path.islink(srcname):
+      if os.path.isdir(srcname) and not os.path.islink(dstname):
         # It's a directory, recurse if we're asked to
         if recursive:
           # TODO we may want to this at the end of the loop, to avoid coming up and down 
           actions.extend(self.__copyDirectory(srcname, dstname))
       else: 
-        # It's a file, diff and copy if necessary
+        # It's a file or a link, diff and copy if necessary
         self.__diffAndCopy(srcname, dstname, actions)
     return actions
 
@@ -149,14 +147,14 @@ class Action:
     # Returns a String with all details
     text = self.toString() + '\n'
     if self.isNew:
-      text += 'Target does not yet exist, it shall be created'
+      text += 'Target does not yet exist, it will be created'
     elif self.command == 'ln':
       # May be different targets or file types, just show that
       try:
-        if os.path.islink(self.source):
-          text += "Source link points to: %s \nTarget link points to: %s" % (self.target, self.source)
+        if os.path.islink(self.target):
+          text += "Currently %s now points to: %s" % (self.target, os.readlink(self.target))
         else:
-          text += "Source link points to: %s \nTarget is a real file, not a link" % (self.target)
+          text += "Target is a real file, not a link, which will be deleted"
       except Exception as e: 
         text += 'ERROR in showDetail\n%s' % e
     elif self.command == 'cp':
@@ -184,7 +182,8 @@ class Action:
           f2=open(self.target,'r') #open another file to compare
           str1=f1.readlines()
           str2=f2.readlines()
-          diff = difflib.unified_diff(str1, str2, fromfile=self.source, tofile=self.target, n=0 )
+          # we want to convert the target into the source
+          diff = difflib.unified_diff(str2, str1, fromfile=self.target, tofile=self.source, n=0 )
           text += '\n'.join(diff)
       except Exception as e: 
         text += 'ERROR in showDetail\n%s' % e
@@ -286,8 +285,8 @@ class DryRun:
           shutil.copystat(action.source, action.target) # copy also the permissions
         if action.command == 'ln':
           if not action.isNew:  
-            os.remove(action.source) # Python does not overwrite links, need to remove first if existed
-          os.symlink(action.target, action.source) # target may be relative path # TODO windows requires an extra param
+            os.remove(action.target) # Python does not overwrite links, need to remove first if existed
+          os.symlink(action.source, action.target) # target may be relative path # TODO windows requires an extra param
         self.summarySuccesses += 1 # if we got to this point, no errors occurred 
       except Exception as e: 
         action.errorMsg = e
@@ -346,7 +345,7 @@ if __name__ == '__main__':
   parser.add_argument('--force', help='Do not stop after the first execution error', action="store_true")
   parser.add_argument('--truncate', help='Display only the first N actions. (0 for All)', default='100', type=int)
   args, unknownargs = parser.parse_known_args()
-  print vars(args)
+  #print vars(args)
 
   # Start creating the task
   run = DryRun()
