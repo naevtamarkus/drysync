@@ -2,14 +2,14 @@
 DrySync copies source files/directories into a destination, asking the user for confirmation before actually doing it.
 
 DrySync tries to solve two problems that come up when doing a classic rsync (or other file sync tools):
-* With rsync it's never clear if you are copying the top directory, so you always have to make sure the destination has the right structure (and some times copy the tree again).
+* With rsync it's never clear if you are copying the top directory, so you always have to make sure the destination has the right structure (and some times copy the tree again), which usually ends up in doing trying more than once.
 * Automatic sync (scheduled to be done in the background) is not a good idea for copying delicate files, such as binaries/scripts that you run often, or ssh keys and the like... which is relevant if you use OwnCloud, Dropbox or other cloud sync tools for such things.
 
 This tool solves these problems by spliting the copy process in two: 
 1. it first generates a list of actions to be done to make source and destination to be in sync, 
 2. and then asks the user for confirmation to execute these actions.
 
-DrySync comes in two flavors: one CLI to use from the command line (much like rsync with a confirmation step) and an *APP* that has a graphical interface, with config files, for scheduling automatic sync of directories for regular use. With the App you can have your binaries, config files and keys in your home cloud storage and have DrySync keep the actual (e.g. ~/bin/ or ~/.ssh/) directories in sync with the cloud storage so, when a change arrives from outside, you always get a confirmation screen before putting the files in their final location.
+DrySync comes in two flavors: one CLI to use from the command line (much like rsync with a confirmation step) and an "App" that has a graphical interface, with config files, for scheduling automatic sync of directories for regular use. With the App you can have your binaries, config files and keys in your home cloud storage and have DrySync keep the actual (e.g. ~/bin/ or ~/.ssh/) directories in sync with the cloud storage so, when a change arrives from outside, you always get a confirmation screen before putting the files in their final location.
 
 Everything is written in python and kept in single-file fashion for maximal portability.
 
@@ -33,10 +33,10 @@ If you invoke the tool with the auto parameter, with ```./drysyncapp auto```, th
 
 There are many ways to schedule these tasks. If you want to use cron (in any linux flavors) you can run:
 ```crontab -e``` as your own user and then add the line:
-```0 8,16 * * * /home/myself/bin/drysyncapp auto >> /tmp/drysync-cron.log```
+```0 8,16 * * * /home/<myself>/bin/drysyncapp auto >> /tmp/drysync-cron.log```
 This will make the app run twice per day, at 8 and 16 hours. You can verify it's active by running ```crontab -l``` or looking at the logs in ```/tmp/drysync-cron.log```
 
-The app uses a config directory in ```~/.drysync``` to store the list of tasks and PID files.
+The App uses a config directory in ```~/.drysync``` to store the list of tasks and PID files.
 
 ## Development
 
@@ -48,6 +48,8 @@ DrySync is under development and has a number of interesting things in the "TODO
 * Windows and Mac support. Kivy potentially support iOS and Android, but I wonder if that's ever a use case for this app.
 * Automated testing to avoid breaking the code with new features
 * More beautiful GUI (while still fitting in a single file)
+* Step-by-step sync
+* Support for multiple goals (beyond the default one)
 
 If you are willing to contribute on any of the above features (or new features) please drop me a line before doing a lot of work on your own.
 
