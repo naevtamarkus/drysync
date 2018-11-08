@@ -1,5 +1,5 @@
 # DrySync
-DrySync copies source files/directories into a destination, asking the user for confirmation before actually doing it.
+DrySync copies source files/directories into a destination interactively, asking the user for confirmation before actually doing it.
 
 DrySync tries to solve two problems that come up when doing a classic rsync (or other file sync tools):
 * With rsync it's never clear if you are copying the top directory, so you always have to make sure the destination has the right structure (and some times copy the tree again), which usually ends up in doing trying more than once.
@@ -11,13 +11,14 @@ This tool solves these problems by spliting the copy process in two:
 
 DrySync comes in two flavors: one CLI to use from the command line (much like rsync with a confirmation step) and an "App" that has a graphical interface, with config files, for scheduling automatic sync of directories for regular use. With the App you can have your binaries, config files and keys in your home cloud storage and have DrySync keep the actual (e.g. ~/bin/ or ~/.ssh/) directories in sync with the cloud storage so, when a change arrives from outside, you always get a confirmation screen before putting the files in their final location.
 
-Everything is written in python and kept in single-file fashion for maximal portability.
+Everything is written in python and kept in single-file fashion for maximal portability. Other salient features are:
+* Step-by-step execution if desired
 
 ## drysync
 
 This is the command-line tool, but it also includes the basic classes for the App. It does not require installattion and can be run like this:
 ```./drysync sourcedir/ destinationdir/```
-This will copy the contents of sourcedir into destinationdir, asking for confirmation before doing it. In the confirmation screen you will see an ordered list of actions to be performed, where you can explore the details of the sync operation. For those files that already exist in the destination but are different, the tool can show you a diff between the two if you tell it to (by typing the number of the action).
+This will copy the contents of sourcedir into destinationdir, recursively, asking for confirmation before doing it. In the confirmation screen you will see an ordered list of actions to be performed, where you can explore the details of the sync operation. For those files that already exist in the destination but are different, the tool can show you a diff between the two if you tell it to (by typing the number of the action).
 
 You can type ```./drysync -h``` for the full instructions. This CLI usage does not use any config files. It works with python 2 and 3 and does not need any special packages.
 
