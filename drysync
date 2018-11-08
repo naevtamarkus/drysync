@@ -50,7 +50,6 @@ class Task:
   def generateActions(self):
     # Returns a list of Action() with all the actions to perform to have this Task done
     actions = []
-    print vars(self)
     self.errorGenerateActions=None
     # Convert ~/ into /home/x/
     outFullPath = os.path.expanduser(self.outputPath)
@@ -58,9 +57,13 @@ class Task:
       for inputPath in self.inputPaths:
         inFullPath = os.path.expanduser(inputPath)
         if os.path.isfile(inFullPath) or os.path.islink(inFullPath):
-          actions.extend(self.__copyFile(inFullPath, outFullPath) )
+          self.__copyFile(inFullPath, outFullPath, actions)
         if os.path.isdir(inFullPath):
-          actions.extend(self.__copyDirectory(inFullPath, outFullPath, includeTop=(not self.skipTopDir), recursive=self.recursive))
+          self.__copyDirectory(inFullPath, outFullPath, actions, includeTop=(not self.skipTopDir), recursive=self.recursive)
+    except KeyboardInterrupt as e: 
+      self.errorGenerateActions = e
+      print ("KeyboardInterrupt exception. Last generated action:\n* %s" % actions[-1].toString())
+      sys.exit()
     except Exception as e: 
       self.errorGenerateActions = e
     return actions
@@ -78,30 +81,25 @@ class Task:
       actions.append(Action(command='cp', source=src, target=dst, isNew=isNew))
     # TODO we could check also permissions are the same and do only an Action(chmod) if not
 
-  def __copyFile(self, src, dst):
-    # Generates an action for a simple copy of a file
-    # Returns a list of Actions
+  def __copyFile(self, src, dst, actions):
+    # Generates an action for a simple copy of a file, which is appended to the parameter
     # src is a file and dst is a directory
     # Exceptions should be catched in the caller of this function
     # If the destination dir does not exist, create it
     #print "__copyFile (%s, %s)" % (src, dst)
-    actions = []  # local var
     name = os.path.basename(src)
     if not os.path.isdir(dst): 
       actions.append(Action(command='mkdir', source=src, target=dst, isNew=True))
     dstname = os.path.join(dst, name)
     self.__diffAndCopy(src, dstname, actions)
-    return actions
 
-  def __copyDirectory(self, src, dst, includeTop=False, recursive=True):
+  def __copyDirectory(self, src, dst, actions, includeTop=False, recursive=True):
     # Walks through directories generating actions
     # Returns a list of Actions
     # src and dst must be directories (absolute paths)
     # Exceptions should be catched in the caller of this function
-    #print "__copyDirectory (%s, %s)" % (src, dst)
     allFiles = os.listdir(src)
     dirName = os.path.basename(src)
-    actions = []
     # first mkdir target dir if does not exist
     if not os.path.isdir(dst): 
       actions.append(Action(command='mkdir', source=src, target=dst, isNew=True))
@@ -119,11 +117,11 @@ class Task:
         # It's a directory, recurse if we're asked to
         if recursive:
           # TODO we may want to this at the end of the loop, to avoid coming up and down 
-          actions.extend(self.__copyDirectory(srcname, dstname))
+          self.__copyDirectory(srcname, dstname, actions)
       else: 
         # It's a file or a link, diff and copy if necessary
         self.__diffAndCopy(srcname, dstname, actions)
-    return actions
+
 
 
 # Action() defines each individual sync action to make progress on a Task (e.g. file A copies to B)
@@ -282,7 +280,6 @@ class DryRun:
     self.summarySuccesses=0 
     self.lastExecutedAction = None
     for task in self.tasks:
-      #print "Generating actions for task %s" % task.description
       self.actions.extend(task.generateActions())
       if task.errorGenerateActions != None:
         self.errorGenerateActions = task.errorGenerateActions
@@ -336,12 +333,6 @@ class DryRun:
 # ******** BEGIN *********
 if __name__ == '__main__':
   # Running CLI
-  # Catch interrupts  
-  import signal
-  def signal_term_handler(signal, frame):
-    print('User Keyboard interrupt')
-    sys.exit(0)
-  signal.signal(signal.SIGINT, signal_term_handler)
   # To make raw_input for python 2/3
   real_raw_input = vars(__builtins__).get('raw_input',input)
   # Get params
@@ -355,12 +346,10 @@ if __name__ == '__main__':
   parser.add_argument('--force', help='Do not stop after the first execution error', action="store_true")
   parser.add_argument('--truncate', help='Display only the first N actions. (0 for All)', default='100', type=int)
   args, unknownargs = parser.parse_known_args()
-  #print vars(args)
 
   # Start creating the task
   run = DryRun()
   task = Task(inputPaths=args.source, outputPath=args.destination, recursive=not args.norecursive, skipTopDir=not args.includetopdir)
-  #print vars(task)
   run.addTask(task)
   run.dryRun()
   if len(run.actions) < 1:
@@ -381,10 +370,14 @@ if __name__ == '__main__':
   # Ask the user what to do next
   while True:
     print("\n Type action number to display details")
-    if truncated:
-      input = real_raw_input(" Or select: eXecute, show All, Quit [X/A/Q]?")
-    else:
-      input = real_raw_input(" Or select: eXecute, Quit [X/Q]?")
+    try:
+      if truncated:
+        input = real_raw_input(" Or select: eXecute, show All, Quit [X/A/Q]?")
+      else:
+        input = real_raw_input(" Or select: eXecute, Quit [X/Q]?")
+    except KeyboardInterrupt as e: 
+      print('User Keyboard interrupt')
+      sys.exit(0)
     # Check input
     if input in ['Q', 'q']:
       break
