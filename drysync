@@ -50,6 +50,7 @@ class Task:
   def generateActions(self):
     # Returns a list of Action() with all the actions to perform to have this Task done
     actions = []
+    print vars(self)
     self.errorGenerateActions=None
     # Convert ~/ into /home/x/
     outFullPath = os.path.expanduser(self.outputPath)
@@ -145,6 +146,9 @@ class Action:
   def showDetail(self):
     # Explains the actual action. If src and dst exist and are files, shows a diff
     # Returns a String with all details
+    # If the action has executed, just drop a summary and return
+    if self.hasExecuted: return self.getExecutionLog()
+    # Otherwise
     text = self.toString() + '\n'
     if self.isNew:
       text += 'Target does not yet exist, it will be created'
@@ -189,11 +193,6 @@ class Action:
         text += 'ERROR in showDetail\n%s' % e
     else:
       text += "Nothing else to highlight"
-    if self.hasExecuted:
-      if self.errorMsg == None:
-        text += '\nThis operation has already been executed successfully'
-      else:
-        text += '\nThis operation has been executed with errors:\n%s' % self.errorMsg
     return text
 
   def toString(self):
@@ -215,6 +214,24 @@ class Action:
     else:
       return '[PENDING] %s' % self.toString()
 
+  def execute(self):
+    # Does the actual execution of the operation
+    try:
+      if self.command == 'cp':
+        shutil.copy2(self.source, self.target)
+      if self.command == 'mkdir':
+        os.mkdir(self.target)
+        shutil.copystat(self.source, self.target) # copy also the permissions
+      if self.command == 'ln':
+        if not self.isNew:  
+          os.remove(self.target) # Python does not overwrite links, need to remove first if existed
+        os.symlink(self.source, self.target) # target may be relative path # TODO windows requires an extra param
+      # Clear the error if this worked (needed to re-run)
+      self.errorMsg = None
+    except Exception as e: 
+      self.errorMsg = e
+    # Action has finished (errors or not)
+    self.hasExecuted = True
 
 
 # DryRun() is the top class, which contains one or more Task(), one single list of Action()
@@ -225,9 +242,10 @@ class DryRun:
     self.tasks = []     # List of Task() 
     self.actions = []   # List of Action()
     self.errorGenerateActions = None  # String wit the error while generating actions
-    self.summaryErrors=0      # maintained for performance
-    self.summarySuccesses=0   # maintained for performance
-    self.lastExecutedAction = None
+    # These three are maintained for performance when dealing with all actions
+    self.summaryErrors=0           
+    self.summarySuccesses=0        
+    self.lastExecutedAction = None 
     # Lambdas for pre/post execution of each action
     self.preActionLambda = None
     self.postActionLambda = None
@@ -270,29 +288,21 @@ class DryRun:
         self.errorGenerateActions = task.errorGenerateActions
         break
 
-  def execute(self, force=False):
-    # Does the real execution of the generated Actions
+  def executeAll(self, force=False):
+    # Does the real execution of all the generated Actions
     # Param 1: if force = True, the execution will continue even if it finds errors
     self.summaryErrors=0 
     self.summarySuccesses=0 
     for index, action in enumerate(self.actions):
       if self.preActionLambda != None: self.preActionLambda(index, action)
-      try:
-        if action.command == 'cp':
-          shutil.copy2(action.source, action.target)
-        if action.command == 'mkdir':
-          os.mkdir(action.target)
-          shutil.copystat(action.source, action.target) # copy also the permissions
-        if action.command == 'ln':
-          if not action.isNew:  
-            os.remove(action.target) # Python does not overwrite links, need to remove first if existed
-          os.symlink(action.source, action.target) # target may be relative path # TODO windows requires an extra param
+      # Don't execute if it already run successfully before
+      if not action.hasExecuted or action.errorMsg != None:
+        action.execute()  
+      # In any case, count errors and successes
+      if action.errorMsg == None:
         self.summarySuccesses += 1 # if we got to this point, no errors occurred 
-      except Exception as e: 
-        action.errorMsg = e
+      else:
         self.summaryErrors += 1
-      # Action has finished (errors or not)
-      action.hasExecuted = True
       self.lastExecutedAction = index
       if self.postActionLambda != None: self.postActionLambda(index, action)
       # Exit the loop if there has been an error, unless we're in force mode
@@ -391,7 +401,7 @@ if __name__ == '__main__':
           print(action.getExecutionLog())
         run.setPostAction(log)
       # do the sync!
-      run.execute(force=args.force) 
+      run.executeAll(force=args.force) 
       print (run.getExecutionLog(onlyErrors=True, onlySummary=args.verbose)) # Only summary if verbose
       break
     elif input.isdigit() and int(input) < len(run.actions):
