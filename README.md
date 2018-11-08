@@ -30,11 +30,11 @@ DrySyncApp works only with python 2.7, and kivy >= 1.09 is also needed as a depe
 
 If you invoke ```./drysyncapp``` without parameters, it will open a configuration screen where you can define any number of sync tasks, enable/disable them, simulate a sync (drysync) and do the actual execution. 
 
-If you invoke the tool with the execute parameter, with ```./drysyncapp --execute default```, the tool will try to perform a sync operation of all the tasks that are defined and enabled, and only launch the GUI interface if there are things to do, to ask for confirmation. This is well suited for running the tool in this mode from a task scheduler (such as cron).
+If you invoke the tool with the execute parameter, with ```./drysyncapp --auto default```, the tool will try to perform a sync operation of all the tasks that are defined and enabled, and only launch the GUI interface if there are things to do, to ask for confirmation. This is well suited for running the tool in this mode from a task scheduler (such as cron).
 
 There are many ways to schedule these tasks. If you want to use cron (in any linux flavors) you can run:
 ```crontab -e``` as your own user and then add the line:
-```0 */2* * * * /home/<myself>/bin/drysyncapp --execute default >> /tmp/drysync-cron.log```
+```0 */2* * * * /home/<myself>/bin/drysyncapp --auto default >> /tmp/drysync-cron.log```
 This will make the app run every second hour. You can verify it's active by running ```crontab -l``` or looking at the logs in ```/tmp/drysync-cron.log```
 
 The App uses a config directory in ```~/.drysync``` to store the list of tasks and PID files.
