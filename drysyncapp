@@ -25,10 +25,10 @@
 #
 # Options to run this app:
 # - Run normally without parameters for a full GUI
-# - Run with 'auto' parameter to perform a dry sync and launch GUI only if necessary (if there are things to sync)
+# - Run with '--auto default' parameter to perform a dry sync and launch GUI only if necessary (if there are things to sync)
 #
 # In order to make this run regularly, insert this with 'crontab -e' as a user
-# 0 8,16 * * * /home/myself/bin/drysyncapp.py auto >> /tmp/drysync-cron.log
+# 0 */2 * * * /home/<myself>/bin/drysyncapp.py --auto default >> /tmp/drysync-cron.log
 
 
 import json
@@ -47,9 +47,9 @@ from drysync import Action
 #  we do this to avoid loading all the Kivy stuff (and opening windows) if not needed
 
 # Prepare config & Globals
-configFile = os.path.expanduser('~/.drysync/drysync.conf')
+goalConfigFile = os.path.expanduser('~/.drysync/default.goal')
 pidFile = os.path.expanduser('~/.drysync/drysync.pid')
-config = None   # This is the config file contents (JSON)
+goalConfig = None   # This is the config file contents (JSON)
 tasks = []  # Read from the config file, needed also for the GUI
 run = None  # DryRun object, actions are inside here
 
@@ -70,13 +70,10 @@ def saveFile(filename, variable):
   except:
     print("Error writing file %s" % filename)
 
-# editingTask is a tmp place to store task when we are editing it 
-# If editingTask == None, it can have two meanings:
-# - for the task edit screen, it's a new task
-# - for the configure main screen, the editing task did NOT save changes
-defaultConfig = {
-    "goals": {"default": {"tasks": [] }}
-  }
+#defaultGoalConfig = {
+#    "goals": {"default": {"tasks": [] }}
+#  }
+defaultGoalConfig = { "tasks": [] }
 
 # Kill previous instances of this app
 pid = loadFile(pidFile, None)
@@ -88,11 +85,12 @@ if pid != None:
 saveFile(pidFile, os.getpid())
 
 # Load the default config and fill in the tasks global var
-config = loadFile(configFile, defaultConfig)
-for task in config["goals"]["default"]["tasks"]:
+goalConfig = loadFile(goalConfigFile, defaultGoalConfig)
+#for task in goalConfig["goals"]["default"]["tasks"]:
+for task in goalConfig["tasks"]:
   tasks.append(Task(task))
 
-if 'auto' in sys.argv:
+if 'default' in sys.argv:  # TODO we should probably detect --auto as well, but okay for now
   # Do the Dry Run and continue with the GUI stuff only if there is something to do
   run = DryRun()
   for task in tasks:
@@ -385,10 +383,12 @@ class ConfigureScreen(Screen):
     
   def saveConfig(self):
     global tasks
+    global goalConfig
     varlist = []
     for task in tasks: varlist.append(vars(task))
-    config["goals"]["default"]["tasks"] = varlist
-    saveFile(configFile, config)
+    #gialConfig["goals"]["default"]["tasks"] = varlist
+    goalConfig["tasks"] = varlist
+    saveFile(goalConfigFile, goalConfig)
     #self.ids.saveButton.disabled = True
 
   def showSingleTask(self, task, parentLayout):
@@ -663,8 +663,13 @@ class TextPopup(Popup):
 # More global variables
 sm = None           # ScreenManager
 app = None          # The App
+# editingTask is a tmp place to store task when we are editing it 
+# If editingTask == None, it can have two meanings:
+# - for the task edit screen, it's a new task
+# - for the configure main screen, the editing task did NOT save changes
 editingTask = None  # To pass the editing task back and forth screens
-if 'auto' in sys.argv:
+
+if 'default' in sys.argv:  # TODO this should be a bit more complex in the future in the AUTO mode
   previousScreen = 'ListActions'   # Start looking at the pending actions
 else:
   previousScreen = 'Configure'     # Start in the main screen
