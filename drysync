@@ -332,6 +332,114 @@ class DryRun:
 
 # ******** BEGIN *********
 if __name__ == '__main__':
+  # DEFINITION OF HELPER FUNCTIONS FOR THE CLI
+
+  from itertools import chain
+  def parse_range_list(rl):
+    # Obtain a list of numbers within a range (e.g. 2,4-6 returns [2,4,5,6])
+    def parse_range(r):
+      if len(r) == 0:
+        return []
+      parts = r.split("-")
+      if len(parts) > 2:
+        print ("Invalid range: {}".format(r))
+        return []
+      return range(int(parts[0]), int(parts[-1])+1)
+    return sorted(set(chain.from_iterable(map(parse_range, rl.split(",")))))
+
+  def printPendingActions(all = False):
+    # Prints all pending actions
+    # Returns true if the list has been truncated, otherwise false
+    # global run, args (readonly)
+    print(" The following pending actions are needed to sync:")
+    count = 0
+    for index, action in enumerate(run.actions):
+      if action.hasExecuted != True or action.errorMsg != None:
+        count += 1
+        # Consider only actions that have either not run or failed before
+        diff = "*" if not action.isNew else "" # mark actions with diff information to show
+        print ("%d%s: %s" % (index, diff, action.toString()))
+        if not all and args.truncate > 1 and count == args.truncate:
+          print ("[...] %d actions to do" % len(run.actions))
+          return True
+    return False
+
+  # Define the Question Loops for the user to interact with
+  # 1. Step by step loop:
+  def stepByStepQuestionLoop():
+    truncated = False
+    while True:
+      print("\n Type action number(s) to execute (e.g. 3,24-21)")
+      try:
+        if truncated:
+          input = real_raw_input(" Or select: Print again, show All pending, Quit step-by-step [P/A/Q]?")
+        else:
+          input = real_raw_input(" Or select: Print again, Quit step-by-step [P/Q]?")
+      except KeyboardInterrupt as e: 
+        print('User Keyboard interrupt')
+        return
+      # Check input
+      if input in ['Q', 'q']:
+        return
+      elif input in ['A', 'a']:
+        # Print all actions and ask again
+        truncated = printPendingActions(all=True)
+        continue
+      elif input in ['P', 'p']:
+        # Print all actions and ask again
+        truncated = printPendingActions()
+        continue
+      else:
+        # They have given us a set of numbers, try to analyze what it is and execute them
+        numbers = parse_range_list(input)
+        if len(numbers) > 0:
+          for i in numbers:
+            run.actions[i].execute()
+            print (run.actions[i].getExecutionLog())
+    # Loop indefinitely
+
+  # 2. Main loop
+  def mainQuestionLoop(truncated):
+    while True:
+      print("\n Type action number to display details")
+      try:
+        if truncated:
+          input = real_raw_input(" Or select: eXecute, Print again, show All, Step-by-step execution, Quit [X/P/A/S/Q]?")
+        else:
+          input = real_raw_input(" Or select: eXecute, Print again, Step-by-step execution, Quit [X/P/S/Q]?")
+      except KeyboardInterrupt: 
+        print('User Keyboard interrupt')
+        return
+      # Check input
+      if input in ['Q', 'q']:
+        return
+      elif input in ['A', 'a']:
+        # Print all actions and ask again
+        printPendingActions(all=True)
+      elif input in ['P', 'p']:
+        # Print all actions and ask again
+        printPendingActions()
+      elif input in ['S', 's']:
+        # Go to the next menu
+        stepByStepQuestionLoop()
+      elif input in ['X', 'x']:
+        print (" Syncing...")
+        # We can pass a pre/post action callback
+        if args.verbose:
+          def log(index, action):
+            print(action.getExecutionLog())
+          run.setPostAction(log)
+        # do the sync!
+        run.executeAll(force=args.force) 
+        print (run.getExecutionLog(onlyErrors=True, onlySummary=args.verbose)) # Only summary if verbose
+        return # TODO maybe we want to stay and recover?
+      elif input.isdigit() and int(input) < len(run.actions):
+        print (run.actions[int(input)].showDetail())
+      else:
+        print(" Invalid answer!")
+    # Loop indefinitely
+
+  # END OF DEFINITION OF HELPER FUNCTIONS FOR THE CLI
   # Running CLI
   # To make raw_input for python 2/3
   real_raw_input = vars(__builtins__).get('raw_input',input)
@@ -347,7 +455,7 @@ if __name__ == '__main__':
   parser.add_argument('--truncate', help='Display only the first N actions. (0 for All)', default='100', type=int)
   args, unknownargs = parser.parse_known_args()
 
-  # Start creating the task
+  # Create the task and do the dry run
   run = DryRun()
   task = Task(inputPaths=args.source, outputPath=args.destination, recursive=not args.norecursive, skipTopDir=not args.includetopdir)
   run.addTask(task)
@@ -356,50 +464,7 @@ if __name__ == '__main__':
     print(" Source and destination are already in sync. Nothing to do")
     sys.exit()
 
-  # There is work to do. Show it.
-  print(" The following actions are needed to sync:")
-  truncated = False
-  for index, action in enumerate(run.actions):
-    diff = "*" if not action.isNew else "" # mark actions with diff information to show
-    print ("%d%s: %s" % (index, diff, action.toString()))
-    if args.truncate > 1 and index == args.truncate - 1:
-      print ("[...] %d actions to do" % len(run.actions))
-      truncated = True
-      break
-
+  # Otherwise there is work to do. Show it.
+  truncated = printPendingActions()
   # Ask the user what to do next
-  while True:
-    print("\n Type action number to display details")
-    try:
-      if truncated:
-        input = real_raw_input(" Or select: eXecute, show All, Quit [X/A/Q]?")
-      else:
-        input = real_raw_input(" Or select: eXecute, Quit [X/Q]?")
-    except KeyboardInterrupt as e: 
-      print('User Keyboard interrupt')
-      sys.exit(0)
-    # Check input
-    if input in ['Q', 'q']:
-      break
-    elif input in ['A', 'a']:
-      # Print all actions and ask again
-      for index, action in enumerate(run.actions):
-        print ("%d: %s" % (index, action.toString()))
-      continue
-    elif input in ['X', 'x']:
-      print (" Syncing...")
-      # We can pass a pre/post action callback
-      if args.verbose:
-        def log(index, action):
-          print(action.getExecutionLog())
-        run.setPostAction(log)
-      # do the sync!
-      run.executeAll(force=args.force) 
-      print (run.getExecutionLog(onlyErrors=True, onlySummary=args.verbose)) # Only summary if verbose
-      break
-    elif input.isdigit() and int(input) < len(run.actions):
-      print (run.actions[int(input)].showDetail())
-      continue
-    else:
-      print(" Invalid answer!")
-
+  mainQuestionLoop(truncated)
