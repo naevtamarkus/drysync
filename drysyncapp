@@ -43,6 +43,12 @@ from drysync import DryRun
 from drysync import Task
 from drysync import Action
 
+import argparse
+parser = argparse.ArgumentParser(description='DrySync copies source files/directories into a destination, asking the user for confirmation before actually doing it')
+parser.add_argument('--auto', dest='auto', help='Automatically try a specific goal (e.g. default)', nargs='+', default=[])
+args, unknownargs = parser.parse_known_args()
+sys.argv[1:] = unknownargs # Remove the app-specific args for Kivy to handle the rest
+
 # STEP 1: run the CLI version on AUTO mode if we're asked to
 #  we do this to avoid loading all the Kivy stuff (and opening windows) if not needed
 
@@ -90,7 +96,7 @@ goalConfig = loadFile(goalConfigFile, defaultGoalConfig)
 for task in goalConfig["tasks"]:
   tasks.append(Task(task))
 
-if 'default' in sys.argv:  # TODO we should probably detect --auto as well, but okay for now
+if 'default' in args.auto:  # TODO we need to catch other goals
   # Do the Dry Run and continue with the GUI stuff only if there is something to do
   run = DryRun()
   for task in tasks:
